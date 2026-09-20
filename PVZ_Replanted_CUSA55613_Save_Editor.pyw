@@ -107,17 +107,32 @@ class App(tk.Tk):
                         lightcolor=GREEN, darkcolor=GREEN_DARK, bordercolor="#09202b", thickness=12)
 
     def _load_images(self):
-        # Assets are pre-sized in the package, so no third-party image library
-        # (such as Pillow/PIL) is required at runtime. Tk 8.6+ loads PNG natively.
-        for name in ("logo.png", "hero.png", "zen_preview.png", "sidebar_grave.png"):
+        # External PNGs are optional.  When they are not present (for example
+        # in a clean GitHub/PyInstaller build), generate lightweight built-in
+        # branding panels so the GUI stays fully self-contained and no Pillow
+        # dependency is required.
+        specs = {
+            "logo.png": (300, 90, "#06202c", "#47df65"),
+            "hero.png": (445, 315, "#0b3340", "#174d35"),
+            "zen_preview.png": (440, 170, "#0b3340", "#1d8f3d"),
+            "sidebar_grave.png": (188, 105, "#092331", "#153d50"),
+        }
+        for name, (w, h, bg, accent) in specs.items():
             p = asset_path(name)
-            try:
-                self.images[name] = tk.PhotoImage(file=str(p))
-            except tk.TclError as exc:
-                raise RuntimeError(
-                    f"Could not load UI image {p.name}. "
-                    "Please use a standard Python 3 installation with Tkinter/Tk 8.6+."
-                ) from exc
+            if p.exists():
+                try:
+                    self.images[name] = tk.PhotoImage(file=str(p))
+                    continue
+                except tk.TclError:
+                    pass
+            img = tk.PhotoImage(width=w, height=h)
+            img.put(bg, to=(0, 0, w, h))
+            img.put(accent, to=(0, int(h * 0.72), w, h))
+            # A few simple light/dark bands keep the built-in fallback from
+            # looking like an empty placeholder.
+            img.put("#2b6076", to=(0, 0, w, 3))
+            img.put("#071923", to=(0, h - 3, w, h))
+            self.images[name] = img
 
     def _build_shell(self):
         self.header = tk.Frame(self, bg="#06202c", height=104, highlightbackground=GREEN_DARK, highlightthickness=1)
